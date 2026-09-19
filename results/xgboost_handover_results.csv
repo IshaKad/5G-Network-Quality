@@ -1,0 +1,2 @@
+dataset,threshold,precision,recall,f1,pr_auc,roc_auc,true_negative,false_positive,false_negative,true_positive,scale_pos_weight
+validation,0.5,0.26923727380348383,0.8114169215086646,0.4043174603174603,0.3629725942277862,0.8555652748680732,13257,4321,370,1592,821.3300198807157
