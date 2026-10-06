@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import pandas as pd
+import joblib
 
 from sklearn.metrics import (
     mean_absolute_error,
@@ -49,7 +50,27 @@ CLASSIFICATION_RESULTS_PATH = os.path.join(
     "xgboost_handover_results.csv"
 )
 
+PREDICTIONS_DIR = os.path.join(
+    RESULTS_DIR,
+    "predictions"
+)
+
+os.makedirs(
+    PREDICTIONS_DIR,
+    exist_ok=True
+)
 os.makedirs(RESULTS_DIR, exist_ok=True)
+
+MODEL_DIR = os.path.abspath(
+    os.path.join(
+        os.path.dirname(__file__),
+        "..",
+        "..",
+        "models"
+    )
+)
+
+os.makedirs(MODEL_DIR, exist_ok=True)
 
 print("\n")
 print("LOADING TRAIN")
@@ -202,6 +223,32 @@ for col in categorical_features:
 X_train = train[feature_columns].copy()
 X_validation = validation[feature_columns].copy()
 
+categorical_categories = {}
+
+for col in categorical_features:
+    categorical_categories[col] = list(
+        train[col].cat.categories
+    )
+
+metadata = {
+    "feature_columns": feature_columns,
+    "categorical_features": categorical_features,
+    "numeric_features": numeric_features,
+    "categorical_categories": categorical_categories
+}
+
+metadata_path = os.path.join(
+    MODEL_DIR,
+    "xgboost_feature_metadata.pkl"
+)
+
+joblib.dump(
+    metadata,
+    metadata_path
+)
+
+print(f"Saved feature metadata to: {metadata_path}")
+
 print(f"Total input features : {len(feature_columns)}")
 print(f"Categorical features  : {len(categorical_features)}")
 print(f"Numeric features      : {len(numeric_features)}")
@@ -274,6 +321,24 @@ for metric_name, target_column in quality_targets.items():
     )
 
     print("Training complete.")
+
+    model_filename = {
+    "RSRP": "xgboost_future_rsrp_model.pkl",
+    "RSRQ": "xgboost_future_rsrq_model.pkl",
+    "SINR": "xgboost_future_sinr_model.pkl"
+    }[metric_name]
+
+    model_path = os.path.join(
+        MODEL_DIR,
+        model_filename
+    )
+
+    joblib.dump(
+        model,
+        model_path
+    )
+
+    print(f"Saved model to: {model_path}")
 
     predictions = model.predict(Xval)
 
@@ -399,6 +464,31 @@ classifier.fit(
     verbose=False
 )
 
+model_dir = os.path.abspath(
+    os.path.join(
+        os.path.dirname(__file__),
+        "..",
+        "..",
+        "models"
+    )
+)
+
+os.makedirs(model_dir, exist_ok=True)
+
+handover_model_path = os.path.join(
+    model_dir,
+    "xgboost_handover_model.pkl"
+)
+
+joblib.dump(
+    classifier,
+    handover_model_path
+)
+
+print(
+    f"Saved handover model to: {handover_model_path}"
+)
+
 print("Training complete.")
 
 validation_probabilities = classifier.predict_proba(
@@ -410,6 +500,33 @@ threshold = 0.50
 validation_predictions = (
     validation_probabilities >= threshold
 ).astype(int)
+
+xgb_handover_predictions = pd.DataFrame({
+    "measurement_id": validation["measurement_id"],
+    "ue_id": validation["ue_id"],
+    "measurement_time": validation["measurement_time"],
+    "actual_handover": y_validation,
+    "handover_probability": validation_probabilities
+})
+
+xgb_handover_predictions.to_csv(
+    os.path.join(
+        PREDICTIONS_DIR,
+        "xgboost_handover_validation_predictions.csv"
+    ),
+    index=False
+)
+
+print(
+    "\nXGBoost handover validation predictions saved to:"
+)
+
+print(
+    os.path.join(
+        PREDICTIONS_DIR,
+        "xgboost_handover_validation_predictions.csv"
+    )
+)
 
 precision = precision_score(
     y_validation,

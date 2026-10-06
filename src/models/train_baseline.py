@@ -394,6 +394,10 @@ train_results = evaluate_model(
     "TRAIN"
 )
 
+train_probabilities = model.predict_proba(
+    X_train
+)[:, 1]
+
 # EVALUATE VALIDATION
 
 validation_results = evaluate_model(
@@ -401,6 +405,48 @@ validation_results = evaluate_model(
     X_validation,
     y_validation,
     "VALIDATION"
+)
+
+validation_probabilities = model.predict_proba(
+    X_validation
+)[:, 1]
+
+logistic_validation_predictions = pd.DataFrame({
+    "measurement_id": validation_df["measurement_id"],
+    "ue_id": validation_df["ue_id"],
+    "measurement_time": validation_df["measurement_time"],
+    "actual_handover": y_validation,
+    "handover_probability": validation_probabilities
+})
+
+predictions_dir = os.path.join(
+    RESULTS_DIR,
+    "predictions"
+)
+
+os.makedirs(
+    predictions_dir,
+    exist_ok=True
+)
+
+logistic_validation_predictions.to_csv(
+    os.path.join(
+        predictions_dir,
+        "logistic_handover_validation_predictions.csv"
+    ),
+    index=False
+)
+
+print()
+print(
+    "Logistic Regression validation predictions saved to:"
+)
+
+print(
+    os.path.join(
+        predictions_dir,
+        "logistic_handover_validation_predictions.csv"
+    )
 )
 
 results = pd.DataFrame(
